@@ -1,7 +1,17 @@
 import os
-from flask import Flask, request, abort, jsonify
+from urllib import response
+from flask import (
+    Flask, 
+    request, 
+    abort, 
+    Response, 
+    flash, 
+    redirect, 
+    url_for, 
+    jsonify
+)
 from flask_sqlalchemy import SQLAlchemy
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 import random
 
 from models import setup_db, Question, Category
@@ -16,16 +26,31 @@ def create_app(test_config=None):
     """
     @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
     """
+    cors = CORS(app, resources={r"/api/*": {"origins": "*"}}, withCredentials=True, supports_credentials=True)
+
 
     """
     @TODO: Use the after_request decorator to set Access-Control-Allow
     """
+    # CORS Headers 
+    @app.after_request
+    def after_request(response):
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,true')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PATCH,POST,DELETE,OPTIONS')
+        return response
 
     """
     @TODO:
     Create an endpoint to handle GET requests
     for all available categories.
     """
+    @app.route('/api/categories')
+    @cross_origin()
+    def categoriesFunction():
+        data = []
+        {data.append(c.format()) for c in Category.query.all()}
+        print(data)
+        return jsonify(data), 200
 
 
     """
@@ -41,6 +66,32 @@ def create_app(test_config=None):
     Clicking on the page numbers should update the questions.
     """
 
+    @app.route('/api/questions', methods=['GET', 'POST'])
+    @cross_origin()
+    def questionsFunction():
+        if request.method == 'GET':
+            
+            page = request.args.get('page', 1)
+            data = []
+            {data.append(c.format()) for c in Question.query.all()}
+            start = (int(page) - 1) * QUESTIONS_PER_PAGE
+            end = start + QUESTIONS_PER_PAGE
+        
+            if start > len(data):
+                return jsonify({"Message": "Page Number Exceeded!"}), 404
+            else:
+                response = data[start:end]
+                currentCategory_id = response[len(response)-1]['category']
+                currentCategory = Category.query.get(currentCategory_id)
+                response.append({
+                    "Total Number of Questions": len(response),
+                    "Current Category": currentCategory.type
+                    })
+                return jsonify(response), 200
+
+        elif request.method == 'POST':
+            return jsonify({"Message": "Question has successfully been created!"})
+
     """
     @TODO:
     Create an endpoint to DELETE question using a question ID.
@@ -48,6 +99,17 @@ def create_app(test_config=None):
     TEST: When you click the trash icon next to a question, the question will be removed.
     This removal will persist in the database and when you refresh the page.
     """
+
+    @app.route('/api/questions/<int:id>', methods=['DELETE'])
+    @cross_origin()
+    def questionFunction(id):
+        
+        if request.method == 'DELETE':
+            Question.query.get(id).delete()
+            return jsonify({"Message": "Question has been deleted!"}), 404
+        elif request.method == 'GET':
+            response = { q.format() for q in Question.query.get(id)}
+            return jsonify(response), 200
 
     """
     @TODO:
@@ -60,6 +122,8 @@ def create_app(test_config=None):
     of the questions list in the "List" tab.
     """
 
+
+
     """
     @TODO:
     Create a POST endpoint to get questions based on a search term.
@@ -70,6 +134,8 @@ def create_app(test_config=None):
     only question that include that string within their question.
     Try using the word "title" to start.
     """
+
+
 
     """
     @TODO:
@@ -98,5 +164,9 @@ def create_app(test_config=None):
     including 404 and 422.
     """
 
+    if __name__ == "__main__":
+        app.run(debug=True)
+
     return app
+
 
