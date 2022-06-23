@@ -1,3 +1,4 @@
+from logging import exception
 import os
 from urllib import response
 from flask import (
@@ -14,7 +15,9 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS, cross_origin
 import random
 
-from models import setup_db, Question, Category
+from sqlalchemy import or_
+
+from models import setup_db, Question, Category, db
 
 QUESTIONS_PER_PAGE = 10
 
@@ -90,7 +93,24 @@ def create_app(test_config=None):
                 return jsonify(response), 200
 
         elif request.method == 'POST':
-            return jsonify({"Message": "Question has successfully been created!"})
+            try:
+                data = request.get_json()
+                print("Data : {\nQuestion : ", data['question'], "\nAnswer : ", data['answer'])
+                if(data is not None):
+                    question = Question(
+                        question = data['question'],
+                        answer = data['answer'],
+                        category = data['category'],
+                        difficulty = data['difficulty']
+                    )
+                    question.insert()
+                    return jsonify({"Message": "Question has successfully been created!"}), 200
+                else:
+                    raise exception
+            except:
+                return jsonify({"Message": "Could not complete your insertion. Check your request data well"}), 400
+            finally:
+                db.session.close
 
     """
     @TODO:
@@ -100,16 +120,32 @@ def create_app(test_config=None):
     This removal will persist in the database and when you refresh the page.
     """
 
-    @app.route('/api/questions/<int:id>', methods=['DELETE'])
+    @app.route('/api/questions/<int:id>', methods=['GET', 'DELETE'])
     @cross_origin()
     def questionFunction(id):
         
         if request.method == 'DELETE':
-            Question.query.get(id).delete()
-            return jsonify({"Message": "Question has been deleted!"}), 404
+            try:
+                Question.query.get_or_404(id).delete()
+                return jsonify({"Message": "Question has been deleted!"}), 200
+            except:
+                return jsonify({"Message": "The question id does not exist."}), 404
+            finally:
+                db.session.close()
+
+
         elif request.method == 'GET':
-            response = { q.format() for q in Question.query.get(id)}
-            return jsonify(response), 200
+            try:
+                response = []
+                print("ID : ", id, "Data : ")
+                data = Question.query.get(id)
+                response.append(data.format()) 
+                return jsonify(response), 200
+            except:
+                return jsonify({"Message": "The question id does not exist."}), 404
+            finally:
+                db.session.close()
+
 
     """
     @TODO:
@@ -135,6 +171,23 @@ def create_app(test_config=None):
     Try using the word "title" to start.
     """
 
+    @app.route('/api/questions/search', methods=['POST'])
+    @cross_origin()
+    def search_questions():
+        if request.method == 'POST':
+            try:
+                response = []
+                term = request.get_json(silent=True)['term']
+                keyword = "%{}%".format(term)
+                print("Search : ", keyword)
+                data = Question.query.filter(Question.question.ilike(keyword)).all()
+                {response.append(q.format()) for q in data}
+                print("Response : ", response)
+                return jsonify(response), 200
+            except:
+                return jsonify({"Message": "Could not search for questions"}), 404
+            finally:
+                print ("End Search")
 
 
     """
@@ -145,6 +198,24 @@ def create_app(test_config=None):
     categories in the left column will cause only questions of that
     category to be shown.
     """
+
+    @app.route('/api/questions/filter', methods=['GET'])
+    @cross_origin()
+    def filter_by_category():
+        if request.method == 'GET':
+            try:
+                response = []
+                request_ = request.get_json(silent=True)
+                if request_['term'] is not None:
+                    filter = "%{}%".format(request_['term'])
+                    category_ = Category.query.filter(Category.type.ilike(filter)).first()
+                    data = Question.query.filter(Question.category == category_.id).all()
+                    {response.append(q.format()) for q in data}
+                return jsonify(response), 200
+            except:
+                return jsonify({"Message": "Could not filter questions"}), 404
+            finally:
+                print ("End Filter")
 
     """
     @TODO:
