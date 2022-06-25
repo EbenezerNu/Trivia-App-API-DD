@@ -233,24 +233,30 @@ def create_app(test_config=None):
         if request.method == 'POST':
             try:
                 response = []
-                request_ = request.get_json(silent=True)
-                if request_['category'] is not None:
-                    previous = None
-                    if request_['previous'] is not None:
-                        previous = request_['previous']
-                    if (request_['category'].lower() == "all") and previous:
-                        data = Question.query.filter(Question.id != previous).all()
-                    elif (request_['category'].lower() == "all"):
-                        data = Question.query.get().all()
+                request_ = request.get_json(silent=True, force=True)
+                previous = -1
+                category = "All"
+                if request_.get('previous'):
+                    previous = request_.get('previous')
+
+                if request_.get('category'):
+                    category = request_.get('category')
+
+                if (category.lower() == "all") and previous:
+                    data = Question.query.filter(Question.id != previous).all()
+                elif (category.lower() == "all"):
+                    data = Question.query.get().all()
+                else:
+                    filter = "%{}%".format(category)
+                    category_ = Category.query.filter(Category.type.ilike(filter)).first()
+                    if previous:
+                        data = Question.query.filter(and_(Question.category == category_.id, Question.id != previous)).all()
                     else:
-                        filter = "%{}%".format(request_['category'])
-                        category_ = Category.query.filter(Category.type.ilike(filter)).first()
-                        if previous:
-                            data = Question.query.filter(and_(Question.category == category_.id, Question.id != previous)).all()
-                        else:
-                             data = Question.query.filter(Question.category == category_.id).all()
-                    { response.append(q.format()) for q in data}
-                idx = random.randint(0, len(response))
+                            data = Question.query.filter(Question.category == category_.id).all()
+
+                { response.append(q.format()) for q in data}
+                idx = random.randint(0, len(response)-1)
+
                 return jsonify(response[idx]), 200
             except:
                 return jsonify({"Message": "Could not filter questions"}), 404
