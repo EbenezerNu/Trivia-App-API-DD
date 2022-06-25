@@ -15,7 +15,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS, cross_origin
 import random
 
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 
 from models import setup_db, Question, Category, db
 
@@ -179,10 +179,8 @@ def create_app(test_config=None):
                 response = []
                 term = request.get_json(silent=True)['term']
                 keyword = "%{}%".format(term)
-                print("Search : ", keyword)
                 data = Question.query.filter(Question.question.ilike(keyword)).all()
                 {response.append(q.format()) for q in data}
-                print("Response : ", response)
                 return jsonify(response), 200
             except:
                 return jsonify({"Message": "Could not search for questions"}), 404
@@ -228,6 +226,38 @@ def create_app(test_config=None):
     one question at a time is displayed, the user is allowed to answer
     and shown whether they were correct or not.
     """
+
+    @app.route('/api/questions/game', methods=['POST'])
+    @cross_origin()
+    def random_question():
+        if request.method == 'POST':
+            try:
+                response = []
+                request_ = request.get_json(silent=True)
+                if request_['category'] is not None:
+                    previous = None
+                    if request_['previous'] is not None:
+                        previous = request_['previous']
+                    if (request_['category'].lower() == "all") and previous:
+                        data = Question.query.filter(Question.id != previous).all()
+                    elif (request_['category'].lower() == "all"):
+                        data = Question.query.get().all()
+                    else:
+                        filter = "%{}%".format(request_['category'])
+                        category_ = Category.query.filter(Category.type.ilike(filter)).first()
+                        if previous:
+                            data = Question.query.filter(and_(Question.category == category_.id, Question.id != previous)).all()
+                        else:
+                             data = Question.query.filter(Question.category == category_.id).all()
+                    { response.append(q.format()) for q in data}
+                idx = random.randint(0, len(response))
+                return jsonify(response[idx]), 200
+            except:
+                return jsonify({"Message": "Could not filter questions"}), 404
+            finally:
+                print ("End Random")
+
+
 
     """
     @TODO:
