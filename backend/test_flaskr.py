@@ -1,4 +1,5 @@
 import os
+import random
 import unittest
 import json
 from flask_sqlalchemy import SQLAlchemy
@@ -24,10 +25,11 @@ class TriviaTestCase(unittest.TestCase):
         self.category = {4, "History"}
         self.wrong_category = {100, "Math"}
         self.previous_questions = [1, 3]
+        self.searchTerm = "Who"
         self.question = {
             "question" : "When did COVID 19 spread to Ghana?",
             "answer" : "2020",
-            "category" : "1",
+            "category" : 4,
             "difficulty" : 1
         }
         
@@ -137,7 +139,7 @@ class TriviaTestCase(unittest.TestCase):
 # SEARCH QUESTION
 
     def test_search_question(self):
-        res = self.client().post("/questions/search", json={'searchTerm' : "Ghana"})
+        res = self.client().post("/questions/search", json={'searchTerm' : self.searchTerm})
         data = json.loads(res.data)
 
         self.assertEqual(res.status_code, 200)
@@ -214,10 +216,7 @@ class TriviaTestCase(unittest.TestCase):
         # QUIZZES
 
     def test_random_question(self):
-        res = self.client().post("/quizzes", json={
-            "quiz_category" : { "id": 4, "type" : "History"},
-            "previous_questions" : [10, 5]
-        })
+        res = self.client().post("/quizzes", json=self.quiz)
         data = json.loads(res.data)
 
         self.assertEqual(res.status_code, 200)
@@ -233,9 +232,7 @@ class TriviaTestCase(unittest.TestCase):
         self.assertFalse(data["success"])
 
     def test_404_input_not_found_random_question(self):
-        res = self.client().post("/quizzes", json={
-            "quiz_category" : { "id": 10, "type" : "noway"}
-        })
+        res = self.client().post("/quizzes", json=self.wrong_quiz)
         data = json.loads(res.data)
 
         self.assertEqual(res.status_code, 404)

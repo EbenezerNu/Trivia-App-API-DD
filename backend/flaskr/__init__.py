@@ -122,6 +122,16 @@ def create_app(test_config=None):
             print("GetQuestion")
 
 
+    """
+    @TODO:
+    Create an endpoint to POST a new question,
+    which will require the question and answer text,
+    category, and difficulty score.
+
+    TEST: When you submit a question on the "Add" tab,
+    the form will clear and the question will appear at the end of the last page
+    of the questions list in the "List" tab.
+    """
 
 
     @app.route('/questions', methods=['POST'])
@@ -152,6 +162,18 @@ def create_app(test_config=None):
                 "success" : False}), 400
         finally:
             db.session.close
+
+    """
+    @TODO:
+    Create a POST endpoint to get questions based on a search term.
+    It should return any questions for whom the search term
+    is a substring of the question.
+
+    TEST: Search by any phrase. The questions list will update to include
+    only question that include that string within their question.
+    Try using the word "title" to start.
+    """
+
 
     @app.route('/questions/search', methods=['POST'])
     @cross_origin()
@@ -191,12 +213,11 @@ def create_app(test_config=None):
         finally:
             print("search complete")
 
-    """
-    @TODO:
-    Create an endpoint to DELETE question using a question ID.
-
-    TEST: When you click the trash icon next to a question, the question will be removed.
-    This removal will persist in the database and when you refresh the page.
+    """Endpoint to get a single Question
+    
+    Keyword arguments: Uses question id as path variable
+    argument -- description
+    Return: question and a success = True if successful
     """
 
     @app.route('/questions/<int:id>', methods=['GET'])
@@ -214,6 +235,15 @@ def create_app(test_config=None):
         finally:
             print("get question")
 
+
+    """
+    @TODO:
+    Create an endpoint to DELETE question using a question ID.
+
+    TEST: When you click the trash icon next to a question, the question will be removed.
+    This removal will persist in the database and when you refresh the page.
+    """
+
     @app.route('/questions/<int:id>', methods=['DELETE'])
     @cross_origin()
     def deleteQuestion(id):
@@ -227,30 +257,7 @@ def create_app(test_config=None):
                 "success" : False}), 404
         finally:
             print("Delete question")
-    
-    """
-    @TODO:
-    Create an endpoint to POST a new question,
-    which will require the question and answer text,
-    category, and difficulty score.
 
-    TEST: When you submit a question on the "Add" tab,
-    the form will clear and the question will appear at the end of the last page
-    of the questions list in the "List" tab.
-    """
-
-
-
-    """
-    @TODO:
-    Create a POST endpoint to get questions based on a search term.
-    It should return any questions for whom the search term
-    is a substring of the question.
-
-    TEST: Search by any phrase. The questions list will update to include
-    only question that include that string within their question.
-    Try using the word "title" to start.
-    """
 
     """
     @TODO:
@@ -312,7 +319,7 @@ def create_app(test_config=None):
         try:
             questions = []
             previous = []
-            request_ = request.get_json(silent=True, force=True)
+            request_ = request.get_json()
             print("Request : ", request_)
             if request_.get('previous_questions'):
                 previous = request_.get('previous_questions')
