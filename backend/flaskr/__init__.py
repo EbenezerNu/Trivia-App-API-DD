@@ -1,5 +1,7 @@
+import json
 from logging import exception
 import os
+from unicodedata import category
 from urllib import response
 from flask import (
     Flask, 
@@ -29,7 +31,7 @@ def create_app(test_config=None):
     """
     @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
     """
-    cors = CORS(app, resources={r"/api/*": {"origins": "*"}}, withCredentials=True, supports_credentials=True)
+    cors = CORS(app, resources={r"/*": {"origins": "*"}}, withCredentials=True, supports_credentials=True)
 
 
     """
@@ -42,18 +44,36 @@ def create_app(test_config=None):
         response.headers.add('Access-Control-Allow-Methods', 'GET,PATCH,POST,DELETE,OPTIONS')
         return response
 
+    """Pagination Function
+    
+    Keyword arguments:
+    argument -- description
+    Return: return_description
+    """
+    def paginate(data, page):
+        start = (int(page) - 1) * QUESTIONS_PER_PAGE
+        end = start + QUESTIONS_PER_PAGE
+        if len(data) < end:
+            end = len(data) - 1
+            
+        if start >= len(data):
+            return abort(404)
+        else:
+            return data[start:end]
+
     """
     @TODO:
     Create an endpoint to handle GET requests
     for all available categories.
     """
-    @app.route('/api/categories')
+    @app.route('/categories')
     @cross_origin()
     def categoriesFunction():
-        data = []
-        {data.append(c.format()) for c in Category.query.all()}
+        data = {}
+        data = {c.id : c.type for c in Category.query.all()}
         print(data)
-        return jsonify(data), 200
+        return jsonify({ "categories" : data,
+                "success" : True}), 200
 
 
     """
@@ -69,48 +89,105 @@ def create_app(test_config=None):
     Clicking on the page numbers should update the questions.
     """
 
-    @app.route('/api/questions', methods=['GET', 'POST'])
+    @app.route('/questions', methods=['GET'])
     @cross_origin()
-    def questionsFunction():
-        if request.method == 'GET':
-            
+    def getQuestions():
+        try:
             page = request.args.get('page', 1)
             data = []
             {data.append(c.format()) for c in Question.query.all()}
-            start = (int(page) - 1) * QUESTIONS_PER_PAGE
-            end = start + QUESTIONS_PER_PAGE
+            questions = paginate(data, page)
+            response = []
+            currentCategory_id = questions[len(questions)-1]['category']
+            currentCategory = Category.query.get(currentCategory_id)
+            categories = {}
+            categories = {c.id : c.type for c in Category.query.all()}
+            response = {
+                "questions" : questions,
+                "total_questions": len(questions),
+                "current_category": {currentCategory.id : currentCategory.type},
+                "categories": categories,
+                "success" : True
+                }
+            print("Categories : ", categories)
+            return jsonify(response), 200
         
-            if start > len(data):
-                return jsonify({"Message": "Page Number Exceeded!"}), 404
-            else:
-                response = data[start:end]
-                currentCategory_id = response[len(response)-1]['category']
-                currentCategory = Category.query.get(currentCategory_id)
-                response.append({
-                    "Total Number of Questions": len(response),
-                    "Current Category": currentCategory.type
-                    })
-                return jsonify(response), 200
+        except:
+            abort(400)
+        finally:
+            print("GetQuestion")
 
-        elif request.method == 'POST':
-            try:
-                data = request.get_json()
-                print("Data : {\nQuestion : ", data['question'], "\nAnswer : ", data['answer'])
-                if(data is not None):
-                    question = Question(
-                        question = data['question'],
-                        answer = data['answer'],
-                        category = data['category'],
-                        difficulty = data['difficulty']
-                    )
-                    question.insert()
-                    return jsonify({"Message": "Question has successfully been created!"}), 200
-                else:
-                    raise exception
-            except:
-                return jsonify({"Message": "Could not complete your insertion. Check your request data well"}), 400
-            finally:
-                db.session.close
+
+
+
+    @app.route('/questions', methods=['POST'])
+    @cross_origin()
+    def createQuestion():
+        try:
+            data = request.get_json()
+            if data.get('question'):
+                print("Data : ", data , "\n")
+                if(data):
+                    category_ = Category.query.get_or_404(data.get('category'))
+                    if category_:
+                        question = Question(
+                            question = data.get('question'),
+                            answer = data.get('answer'),
+                            category = data.get('category'),
+                            difficulty = int(data.get('difficulty')))
+                        question.insert()
+                        return jsonify({"message": "Question has successfully been created!",
+                "success" : True}), 200
+                    else:
+                        return jsonify({"message": "Category id does not exist!",
+                "success" : False}), 404
+            else:
+                abort(422)
+        except:
+            return jsonify({"message": "Could not complete your insertion. Check your request data well",
+                "success" : False}), 400
+        finally:
+            db.session.close
+
+    @app.route('/questions/search', methods=['POST'])
+    @cross_origin()
+    def searchQuestions():
+        try:
+            data = request.get_json()
+            # THE SEARCH METHOD 
+            if data.get('searchTerm') is not None:
+                term = request.get_json(silent=True).get('searchTerm')
+                keyword = "%{}%".format(term)
+                questions = []
+                data = Question.query.filter(Question.question.ilike(keyword)).all()
+                if len(data) == 0:
+                    return jsonify({
+                        "questions": data,
+                        "total_questions": len(data),
+                        "current_category": {},
+                        "success" : False
+            }), 200
+            elif data.get('searchTerm') is None:
+                data = Question.query.all()
+
+            idx = data[len(data)-1].category
+            print("idx : ", idx, "\nQuestions : ", questions)
+            current_category = Category.query.get(idx)
+            {questions.append(q.format()) for q in data}
+            return jsonify({
+                "questions": questions,
+                "total_questions": len(questions),
+                "current_category": {
+                    current_category.id : current_category.type
+                    },
+                "success" : True
+            }), 200
+
+        except:
+            return jsonify({"message": "Could not complete your insertion. Check your request data well",
+                "success" : False}), 400
+        finally:
+            print("search complete")
 
     """
     @TODO:
@@ -120,33 +197,35 @@ def create_app(test_config=None):
     This removal will persist in the database and when you refresh the page.
     """
 
-    @app.route('/api/questions/<int:id>', methods=['GET', 'DELETE'])
+    @app.route('/questions/<int:id>', methods=['GET'])
     @cross_origin()
-    def questionFunction(id):
-        
-        if request.method == 'DELETE':
-            try:
-                Question.query.get_or_404(id).delete()
-                return jsonify({"Message": "Question has been deleted!"}), 200
-            except:
-                return jsonify({"Message": "The question id does not exist."}), 404
-            finally:
-                db.session.close()
+    def getQuestion(id):
+        try:
+            print("ID : ", id, "Data : ")
+            data = Question.query.get(id)
+            response = data.format()
+            return jsonify({"question" : response,
+                "success" : True}), 200
+        except:
+            return jsonify({"message": "The question id does not exist.",
+                "success" : False}), 404
+        finally:
+            print("get question")
 
-
-        elif request.method == 'GET':
-            try:
-                response = []
-                print("ID : ", id, "Data : ")
-                data = Question.query.get(id)
-                response.append(data.format()) 
-                return jsonify(response), 200
-            except:
-                return jsonify({"Message": "The question id does not exist."}), 404
-            finally:
-                db.session.close()
-
-
+    @app.route('/questions/<int:id>', methods=['DELETE'])
+    @cross_origin()
+    def deleteQuestion(id):
+        try:
+            question = Question.query.get_or_404(id)
+            question.delete()
+            return jsonify({"message": "Question has been deleted!",
+                "success" : True}), 200
+        except:
+            return jsonify({"message": "The question id does not exist.",
+                "success" : False}), 404
+        finally:
+            print("Delete question")
+    
     """
     @TODO:
     Create an endpoint to POST a new question,
@@ -171,23 +250,6 @@ def create_app(test_config=None):
     Try using the word "title" to start.
     """
 
-    @app.route('/api/questions/search', methods=['POST'])
-    @cross_origin()
-    def search_questions():
-        if request.method == 'POST':
-            try:
-                response = []
-                term = request.get_json(silent=True)['term']
-                keyword = "%{}%".format(term)
-                data = Question.query.filter(Question.question.ilike(keyword)).all()
-                {response.append(q.format()) for q in data}
-                return jsonify(response), 200
-            except:
-                return jsonify({"Message": "Could not search for questions"}), 404
-            finally:
-                print ("End Search")
-
-
     """
     @TODO:
     Create a GET endpoint to get questions based on category.
@@ -197,23 +259,36 @@ def create_app(test_config=None):
     category to be shown.
     """
 
-    @app.route('/api/questions/filter', methods=['GET'])
+    @app.route('/categories/<int:id>/questions', methods=['GET'])
     @cross_origin()
-    def filter_by_category():
-        if request.method == 'GET':
-            try:
-                response = []
-                request_ = request.get_json(silent=True)
-                if request_['term'] is not None:
-                    filter = "%{}%".format(request_['term'])
-                    category_ = Category.query.filter(Category.type.ilike(filter)).first()
-                    data = Question.query.filter(Question.category == category_.id).all()
-                    {response.append(q.format()) for q in data}
+    def filter_by_category(id):
+        try:
+            response = []
+            category = Category.query.get(id)
+            if category is not None:
+                data = Question.query.filter(Question.category == id).all()
+                questions = []
+                size_ = 0
+                if data is not None:
+                    {questions.append(q.format()) for q in data}
+                    size_ = len(questions)
+
+                response = { 
+                    "questions": questions, 
+                    "total_questions": size_, 
+                    "current_category": {
+                        category.id : category.type
+                        },
+                    "success" : True
+                    }
                 return jsonify(response), 200
-            except:
-                return jsonify({"Message": "Could not filter questions"}), 404
-            finally:
-                print ("End Filter")
+            else:
+                abort(404)
+        except:
+            return jsonify({"message": "No filter was applied",
+                "success" : False}), 400
+        finally:
+            print ("End Filter")
 
     """
     @TODO:
@@ -227,41 +302,41 @@ def create_app(test_config=None):
     and shown whether they were correct or not.
     """
 
-    @app.route('/api/questions/game', methods=['POST'])
+    @app.route('/quizzes', methods=['POST'])
     @cross_origin()
     def random_question():
-        if request.method == 'POST':
-            try:
-                response = []
-                request_ = request.get_json(silent=True, force=True)
-                previous = -1
-                category = "All"
-                if request_.get('previous'):
-                    previous = request_.get('previous')
+        try:
+            questions = []
+            request_ = request.get_json(silent=True, force=True)
+            previous = request_.get('previous_questions')
+            category = {}
+            data = []
+            if request_.get('quiz_category'):
+                category = request_.get('quiz_category')
+            if (category.get('type') == 'click') and (len(previous) == 0):
+                data = Question.query.all()
+            elif (category.get('type') == 'click') and (len(previous) != 0):
+                data = Question.query.filter(Question.id not in previous).all()
+            elif (category.get('type') != 'click') and (len(previous) == 0):
+                data = Question.query.filter(Question.category == category.get('id')).all()
+            elif (category.get('type') != 'click') and (len(previous) != 0):
+                data = Question.query.filter(and_(Question.category == category.get('id'), Question.id not in previous)).all()
+            else:
+                abort(404)
 
-                if request_.get('category'):
-                    category = request_.get('category')
+            print("Data : ", data)
+            { questions.append(q.format()) for q in data}
+            idx = random.randint(0, len(questions)-1)
 
-                if (category.lower() == "all") and previous:
-                    data = Question.query.filter(Question.id != previous).all()
-                elif (category.lower() == "all"):
-                    data = Question.query.get().all()
-                else:
-                    filter = "%{}%".format(category)
-                    category_ = Category.query.filter(Category.type.ilike(filter)).first()
-                    if previous:
-                        data = Question.query.filter(and_(Question.category == category_.id, Question.id != previous)).all()
-                    else:
-                            data = Question.query.filter(Question.category == category_.id).all()
-
-                { response.append(q.format()) for q in data}
-                idx = random.randint(0, len(response)-1)
-
-                return jsonify(response[idx]), 200
-            except:
-                return jsonify({"Message": "Could not filter questions"}), 404
-            finally:
-                print ("End Random")
+            return jsonify({
+                "question": questions[idx],
+            "success" : True
+                }), 200
+        except:
+            return jsonify({"message": "Could  not filter questions",
+            "success" : False}), 404
+        finally:
+            print ("End Random")
 
 
 
@@ -270,6 +345,22 @@ def create_app(test_config=None):
     Create error handlers for all expected errors
     including 404 and 422.
     """
+    @app.errorhandler(404)
+    def not_found_error(error):
+        return jsonify({"message": "Data is not found", "error" : error,
+                "success" : False}), 404
+
+
+    @app.errorhandler(422)
+    def server_error(error):
+        return jsonify({"message": "Unable to process user instructions.\nPleease modify your request before sending another one", "error" : error,
+                "success" : False}), 422
+    
+    @app.errorhandler(405)
+    def invalid_method_error(error):
+        return jsonify({"message": "Method is not allowed", "error" : error,
+                "success" : False}), 405
+
 
     if __name__ == "__main__":
         app.run(debug=True)
