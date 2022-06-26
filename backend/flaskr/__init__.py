@@ -360,20 +360,25 @@ def create_app(test_config=None):
     including 404 and 422.
     """
     @app.errorhandler(404)
+    def back_request_error(error):
+        return jsonify({"message": "This is a bad request", "error" : sys.exc_info(),
+                "success" : False}), 400
+    
+    @app.errorhandler(404)
     def not_found_error(error):
         return jsonify({"message": "Data is not found", "error" : sys.exc_info(),
                 "success" : False}), 404
 
+    @app.errorhandler(405)
+    def invalid_method_error(error):
+        return jsonify({"message": "Method is not allowed", "error" : sys.exc_info(),
+                "success" : False}), 405
 
     @app.errorhandler(422)
     def server_error(error):
         return jsonify({"message": "Unable to process user instructions.\nPleease modify your request before sending another one", "error" : sys.exc_info(),
                 "success" : False}), 422
     
-    @app.errorhandler(405)
-    def invalid_method_error(error):
-        return jsonify({"message": "Method is not allowed", "error" : sys.exc_info(),
-                "success" : False}), 405
 
 
     if __name__ == "__main__":
