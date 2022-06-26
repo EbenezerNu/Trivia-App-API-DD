@@ -62,6 +62,19 @@ def create_app(test_config=None):
         else:
             return data[start:end]
 
+    """Array Check Function
+    
+    Check if the previous questions contains id
+    """
+    def filterNew(data, previous):
+        results = []
+        for question in data:
+            if question.get('id') not in previous:
+                results.append(question)
+        print ("Results : ", results)
+        return results
+
+
     """
     @TODO:
     Create an endpoint to handle GET requests
@@ -325,21 +338,28 @@ def create_app(test_config=None):
                 previous = request_.get('previous_questions')
             category = {}
             data = []
+            print("Previous Question : ", previous)
             if request_.get('quiz_category'):
                 category = request_.get('quiz_category')
-            if (category.get('id') == 0) and (len(previous) == 0):
+            if (category.get('id') == 0):
                 data = Question.query.all()
-            elif (category.get('id') == 0) and (len(previous) != 0):
-                data = Question.query.filter(Question.id not in previous).all()
-            elif (category.get('id') != 0) and (len(previous) == 0):
+
+            elif (category.get('id') != 0):
                 data = Question.query.filter(Question.category == category.get('id')).all()
-            elif (category.get('id') != 0) and (len(previous) != 0):
-                data = Question.query.filter(and_(Question.category == category.get('id'), Question.id not in previous)).all()
+
             else:
                 abort(404)
 
-            print("Data : ", data)
+
             { questions.append(q.format()) for q in data}
+            if len(previous) != 0:
+                questions = filterNew(questions, previous)
+
+            if len(questions) == 0:
+                return jsonify({
+                "End": True, "success" : True
+                }), 200
+
             idx = random.randint(0, len(questions)-1)
 
             return jsonify({

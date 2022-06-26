@@ -5,13 +5,13 @@ import json
 from flask_sqlalchemy import SQLAlchemy
 from flaskr import create_app
 from models import setup_db, Question, Category
-from dotenv import load_dotenv
-load_dotenv('../template.env')
+# from dotenv import load_dotenv
+# load_dotenv('../template.env')
     
 # dotenv_path = join(dirname(__file__), '.env')
 # load_dotenv(dotenv_path)
 
-database_path = 'postgresql://{}/{}'.format(os.getenv('database_url'), os.getenv('database_test_name'))
+database_path = 'postgresql://{}/{}'.format(os.environ.get("DATABASE_URL"), os.environ.get("TRIVIA_TEST_DATABASE_NAME"))
 
 
 class TriviaTestCase(unittest.TestCase):
