@@ -73,7 +73,7 @@ You will need to provide detailed documentation of your API endpoints including 
 
 ### Documentation Example
 
-`GET '/api/v1.0/categories'`
+`GET '/categories'`
 
 - Fetches a dictionary of categories in which the keys are the ids and the value is the corresponding string of the category
 - Request Arguments: None
@@ -81,12 +81,166 @@ You will need to provide detailed documentation of your API endpoints including 
 
 ```json
 {
-  "1": "Science",
-  "2": "Art",
-  "3": "Geography",
-  "4": "History",
-  "5": "Entertainment",
-  "6": "Sports"
+  "categories": {
+    "1": "Science",
+    "2": "Art",
+    "3": "Geography",
+    "4": "History",
+    "5": "Entertainment",
+    "6": "Sports"
+  },
+  "success": true
+}
+```
+
+`GET '/questions'`
+
+- Fetches a dictionary of questions, total_questions, current_category, categories in which the keys.
+- Request Arguments: Page number is an integer as request parameter to access the paginated questions.
+- Returns: An object with `questions`, `total_questions`, `current_category`, `categories` and `success`.
+  - The `questions` key contains an array of paginated question objects.
+  - The `total_questions` key contains the number of items in the array of questions.
+  - The `current_category` key contains the type attribute of the category of the last question object in the questions object
+  - The `categories` key contains an object of `id: category_string` key: value pairs.
+  - The `success` key contains a boolean true.
+
+```json
+{
+  "questions": [
+    {
+      "id": 1,
+      "question": "This is a question",
+      "answer": "This is an answer",
+      "category": "2",
+      "difficulty": 3
+    }
+  ],
+  "total_questions": 1,
+  "current_category": "Art",
+  "categories": {
+    "1": "Science",
+    "2": "Art",
+    "3": "Geography",
+    "4": "History",
+    "5": "Entertainment",
+    "6": "Sports"
+  },
+  "success": true
+}
+```
+
+`POST '/questions'`
+
+- Sends a request with a question object to be saved into the database.
+- Request Arguments: a `question` object.
+- Returns: An object with `message` and `success`.
+  - The `message` key contains a string
+  - The `success` key contains a boolean true.
+
+```json
+{
+  "message": "Question has been saved",
+  "success": true
+}
+```
+
+`POST '/questions/search'`
+
+- Fetches a dictionary of questions, total_questions, current_category, categories in which the keys.
+- Request Arguments: An object with `searchTerm` as key and a string value.
+- Returns: An object with `questions`, `total_questions`, `current_category`, `categories` and `success`.
+  - The `questions` key contains an array of question objects which has its question key containing `searchTerm`.
+  - The `total_questions` key contains the number of items in the array of questions.
+  - The `current_category` key contains the type attribute of the category of the last question object in the questions object
+  - The `categories` key contains an object of `id: category_string` key: value pairs.
+  - The `success` key contains a boolean true.
+
+```json
+{
+  "questions": [
+    {
+      "id": 1,
+      "question": "This is a question",
+      "answer": "This is an answer",
+      "category": "2",
+      "difficulty": 3
+    }
+  ],
+  "total_questions": 1,
+  "current_category": "Art",
+  "categories": {
+    "1": "Science",
+    "2": "Art",
+    "3": "Geography",
+    "4": "History",
+    "5": "Entertainment",
+    "6": "Sports"
+  },
+  "success": true
+}
+```
+
+`DELETE '/questions/<int:id>'`
+
+- Sends a request with a question object's id to be deleted from the database.
+- Request Arguments: a category `id` as integer.
+- Returns: An object with `message` and `success`.
+  - The `message` key contains a string
+  - The `success` key contains a boolean true.
+
+```json
+{
+  "message": "Question has been deleted",
+  "success": true
+}
+```
+
+`GET '/categories/<int:id>/questions'`
+
+- Fetches a dictionary of questions, total_questions, current_category, categories in which the keys.
+- Request Arguments: An integer path variable as `id`.
+- Returns: An object with `questions`, `total_questions`, `current_category`, `categories` and `success`.
+
+  - The `questions` key contains an array of question objects which are of the category `id`.
+  - The `total_questions` key contains the number of items in the array of questions.
+  - The `current_category` key contains the type attribute of the category of the last question object in the questions object.
+  - The `success` key contains a boolean true.
+
+```json
+{
+  "questions": [
+    {
+      "id": 1,
+      "question": "This is a question",
+      "answer": "This is an answer",
+      "category": "2",
+      "difficulty": 3
+    }
+  ],
+  "total_questions": 1,
+  "current_category": "Art",
+  "success": true
+}
+```
+
+`POST '/quizzes'`
+
+- Fetches an oject of keys `question` and `success`, where `question` is a random question based on input arguments.
+- Request Arguments: An object of containing a keys `quiz_category` and `previous_questions`, and values category object and an array of questions' ids respectively.
+- Returns: An object with `question` and `success`.
+  - The `question` key contains a random quesiton object of category `quiz_category` and is not in the array `previous_questions`.
+  - The `success` key contains a boolean true.
+
+```json
+{
+  "question": {
+    "id": 1,
+    "question": "This is a question",
+    "answer": "This is an answer",
+    "category": "2",
+    "difficulty": 3
+  },
+  "success": true
 }
 ```
 

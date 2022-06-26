@@ -5,6 +5,13 @@ import json
 from flask_sqlalchemy import SQLAlchemy
 from flaskr import create_app
 from models import setup_db, Question, Category
+from dotenv import load_dotenv
+load_dotenv('../template.env')
+    
+# dotenv_path = join(dirname(__file__), '.env')
+# load_dotenv(dotenv_path)
+
+database_path = 'postgresql://{}/{}'.format(os.getenv('database_url'), os.getenv('database_test_name'))
 
 
 class TriviaTestCase(unittest.TestCase):
@@ -14,8 +21,7 @@ class TriviaTestCase(unittest.TestCase):
         """Define test variables and initialize app."""
         self.app = create_app()
         self.client = self.app.test_client
-        self.database_name = "trivia_test"
-        self.database_path = "postgresql://{}/{}".format('localhost:5432', self.database_name)
+        self.database_path = database_path
         setup_db(self.app, self.database_path)
 
         self.wrong_quiz = {
@@ -33,7 +39,7 @@ class TriviaTestCase(unittest.TestCase):
             "difficulty" : 1
         }
         
-        self.current_category = { 2: "Entertainment"}
+        self.current_category = { 5: "Entertainment"}
 
         self.quiz = {
             "quiz_category" : { "id": 4, "type" : "History"},
@@ -46,24 +52,6 @@ class TriviaTestCase(unittest.TestCase):
             self.db.init_app(self.app)
             # create all tables
             self.db.create_all()
-            # self.db.session.add(self.category1)
-            # self.db.session.commit()
-            # self.db.session.add(self.category2)
-            # self.db.session.commit()
-            # self.db.session.add(self.category3)
-            # self.db.session.commit()
-
-            # self.db.session.add(self.question1)
-            # self.db.session.commit()
-            # self.db.session.add(self.question2)
-            # self.db.session.commit()
-            # self.db.session.add(self.question3)
-            # self.db.session.commit()
-            # self.db.session.add(self.question4)
-            # self.db.session.commit()
-            # self.db.session.add(self.question5)            
-            # self.db.session.commit()
-
             self.db.session.close()
 
     def tearDown(self):
@@ -128,13 +116,6 @@ class TriviaTestCase(unittest.TestCase):
         self.assertEqual(data["message"], "Question has successfully been created!")
         self.assertTrue(data["success"])
 
-    # def test_405_cannot_create_question(self):
-    #     res = self.client().post("/questions/1", json=self.question)
-    #     data = json.loads(res.data)
-
-    #     self.assertEqual(res.status_code, 405)
-    #     self.assertEqual(data["message"], "Question has successfully been created!")
-    #     self.assertFalse(data["success"])
 
 # SEARCH QUESTION
 
@@ -169,12 +150,13 @@ class TriviaTestCase(unittest.TestCase):
 # DELETE QUESTION
 
     def test_delete_question(self):
-        res = self.client().delete("/questions/36")
+        res = self.client().delete("/questions/37")
         data = json.loads(res.data)
-
+        question = Question.query.filter(Question.id == 37).one_or_none()
         self.assertEqual(res.status_code, 200)
         self.assertEqual(data["message"], "Question has been deleted!")
         self.assertTrue(data["success"])
+        self.assertEqual(question, None)
 
     def test_404_invalid_id_delete_question(self):
         res = self.client().delete("/questions/1000")
@@ -184,13 +166,6 @@ class TriviaTestCase(unittest.TestCase):
         self.assertEqual(data["message"], "The question id does not exist.")
         self.assertFalse(data["success"])
 
-    # def test_405_invalid_method_delete_question(self):
-    #     res = self.client().delete("/questions")
-    #     data = json.loads(res.data)
-
-    #     self.assertEqual(res.status_code, 405)
-    #     self.assertTrue(data["message"])
-    #     self.assertFalse(data["success"])
 
 # FILTER BY CATEGORY
 
