@@ -1,6 +1,7 @@
 import json
 from logging import exception
 import os
+import sys
 from unicodedata import category
 from urllib import response
 from flask import (
@@ -57,7 +58,7 @@ def create_app(test_config=None):
             end = len(data) - 1
             
         if start >= len(data):
-            return abort(404)
+            return []
         else:
             return data[start:end]
 
@@ -97,6 +98,9 @@ def create_app(test_config=None):
             data = []
             {data.append(c.format()) for c in Question.query.all()}
             questions = paginate(data, page)
+            if len(questions) == 0:
+                return jsonify({"message": "Page limit exceeded", "error": sys.exc_info(), "success": False}), 404
+
             response = []
             currentCategory_id = questions[len(questions)-1]['category']
             currentCategory = Category.query.get(currentCategory_id)
@@ -105,7 +109,7 @@ def create_app(test_config=None):
             response = {
                 "questions" : questions,
                 "total_questions": len(questions),
-                "current_category": {currentCategory.id : currentCategory.type},
+                "current_category": currentCategory.type,  
                 "categories": categories,
                 "success" : True
                 }
@@ -177,14 +181,12 @@ def create_app(test_config=None):
             return jsonify({
                 "questions": questions,
                 "total_questions": len(questions),
-                "current_category": {
-                    current_category.id : current_category.type
-                    },
+                "current_category": current_category.type,
                 "success" : True
             }), 200
 
         except:
-            return jsonify({"message": "Could not complete your insertion. Check your request data well",
+            return jsonify({"message": "Could not complete your search. Check your request data well",
                 "success" : False}), 400
         finally:
             print("search complete")
@@ -264,28 +266,30 @@ def create_app(test_config=None):
     def filter_by_category(id):
         try:
             response = []
-            category = Category.query.get(id)
+            category = Category.query.filter(Category.id == id).first()
+            print('Category : ', category)
             if category is not None:
                 data = Question.query.filter(Question.category == id).all()
                 questions = []
                 size_ = 0
-                if data is not None:
+                print("Data: ", data)
+                if len(data) != 0:
                     {questions.append(q.format()) for q in data}
                     size_ = len(questions)
 
                 response = { 
                     "questions": questions, 
                     "total_questions": size_, 
-                    "current_category": {
-                        category.id : category.type
-                        },
+                    "current_category": category.type, 
                     "success" : True
                     }
+                print("Response : ", response)
                 return jsonify(response), 200
             else:
-                abort(404)
+                return jsonify({"message": "Category cannot be found",
+                "success" : False}), 404
         except:
-            return jsonify({"message": "No filter was applied",
+            return jsonify({"message": "No category was selected",
                 "success" : False}), 400
         finally:
             print ("End Filter")
@@ -307,19 +311,22 @@ def create_app(test_config=None):
     def random_question():
         try:
             questions = []
+            previous = []
             request_ = request.get_json(silent=True, force=True)
-            previous = request_.get('previous_questions')
+            print("Request : ", request_)
+            if request_.get('previous_questions'):
+                previous = request_.get('previous_questions')
             category = {}
             data = []
             if request_.get('quiz_category'):
                 category = request_.get('quiz_category')
-            if (category.get('type') == 'click') and (len(previous) == 0):
+            if (category.get('id') == 0) and (len(previous) == 0):
                 data = Question.query.all()
-            elif (category.get('type') == 'click') and (len(previous) != 0):
+            elif (category.get('id') == 0) and (len(previous) != 0):
                 data = Question.query.filter(Question.id not in previous).all()
-            elif (category.get('type') != 'click') and (len(previous) == 0):
+            elif (category.get('id') != 0) and (len(previous) == 0):
                 data = Question.query.filter(Question.category == category.get('id')).all()
-            elif (category.get('type') != 'click') and (len(previous) != 0):
+            elif (category.get('id') != 0) and (len(previous) != 0):
                 data = Question.query.filter(and_(Question.category == category.get('id'), Question.id not in previous)).all()
             else:
                 abort(404)
@@ -347,18 +354,18 @@ def create_app(test_config=None):
     """
     @app.errorhandler(404)
     def not_found_error(error):
-        return jsonify({"message": "Data is not found", "error" : error,
+        return jsonify({"message": "Data is not found", "error" : sys.exc_info(),
                 "success" : False}), 404
 
 
     @app.errorhandler(422)
     def server_error(error):
-        return jsonify({"message": "Unable to process user instructions.\nPleease modify your request before sending another one", "error" : error,
+        return jsonify({"message": "Unable to process user instructions.\nPleease modify your request before sending another one", "error" : sys.exc_info(),
                 "success" : False}), 422
     
     @app.errorhandler(405)
     def invalid_method_error(error):
-        return jsonify({"message": "Method is not allowed", "error" : error,
+        return jsonify({"message": "Method is not allowed", "error" : sys.exc_info(),
                 "success" : False}), 405
 
 
